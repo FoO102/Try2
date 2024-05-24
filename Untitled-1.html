@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fruit Catcher Game</title>
+    <style>
+        body { margin: 0; }
+        #gameCanvas { display: block; margin: auto; }
+        .button {
+            position: absolute;
+            bottom: 20px;
+            width: 50px;
+            height: 50px;
+            background-color: rgba(0, 0, 0, 0.5);
+            color: white;
+            font-size: 24px;
+            line-height: 50px;
+            text-align: center;
+            border-radius: 25px;
+        }
+        #leftButton {
+            left: 20px;
+        }
+        #rightButton {
+            right: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameCanvas"></div>
+    <div id="leftButton" class="button">←</div>
+    <div id="rightButton" class="button">→</div>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.min.js"></script>
+    <script>
+        const config = {
+            type: Phaser.AUTO,
+            width: 800,
+            height: 600,
+            physics: {
+                default: 'arcade',
+                arcade: { gravity: { y: 300 }, debug: false }
+            },
+            scene: {
+                preload: preload,
+                create: create,
+                update: update
+            },
+            parent: 'gameCanvas'
+        };
+
+        let game = new Phaser.Game(config);
+        let player;
+        let fruits;
+        let candies;
+        let cursors;
+        let score = 0;
+        let scoreText;
+        let hp = 3;
+        let hpText;
+        let spawnTimer;
+        let leftButtonPressed = false;
+        let rightButtonPressed = false;
+
+        function preload() {
+            this.load.image('player', 'https://via.placeholder.com/50'); // Placeholder image for the player
+        }
+
+        function create() {
+            player = this.physics.add.sprite(400, 550, 'player').setCollideWorldBounds(true);
+            
+            fruits = this.physics.add.group();
+            candies = this.physics.add.group();
+
+            this.physics.add.collider(player, fruits, collectFruit, null, this);
+            this.physics.add.collider(player, candies, hitCandy, null, this);
+
+            scoreText = this.add.text(16, 16, 'Score: 0', { fontSize: '32px', fill: '#000' });
+            hpText = this.add.text(16, 48, 'HP: 3', { fontSize: '32px', fill: '#000' });
+
+            cursors = this.input.keyboard.createCursorKeys();
+
+            spawnTimer = this.time.addEvent({
+                delay: 1000,  // Spawn a new object every second
+                callback: spawnObject,
+                callbackScope: this,
+                loop: true
+            });
+
+            const leftButton = document.getElementById('leftButton');
+            const rightButton = document.getElementById('rightButton');
+
+            leftButton.addEventListener('touchstart', () => { leftButtonPressed = true; });
+            leftButton.addEventListener('touchend', () => { leftButtonPressed = false; });
+            rightButton.addEventListener('touchstart', () => { rightButtonPressed = true; });
+            rightButton.addEventListener('touchend', () => { rightButtonPressed = false; });
+        }
+
+        function update() {
+            if (cursors.left.isDown || leftButtonPressed) {
+                player.setVelocityX(-160);
+            } else if (cursors.right.isDown || rightButtonPressed) {
+                player.setVelocityX(160);
+            } else {
+                player.setVelocityX(0);
+            }
+        }
+
+        function spawnObject() {
+            let x = Phaser.Math.Between(50, 750);
+            let isFruit = Phaser.Math.Between(0, 1) === 0;
+
+            if (isFruit) {
+                let fruit = fruits.create(x, 0, null);
+                drawShape.call(this, fruit, 'fruit');
+                fruit.setBounce(1);
+                fruit.setCollideWorldBounds(true);
+                fruit.setVelocity(Phaser.Math.Between(-100, 100), 20);
+            } else {
+                let candy = candies.create(x, 0, null);
+                drawShape.call(this, candy, 'candy');
+                candy.setBounce(1);
+                candy.setCollideWorldBounds(true);
+                candy.setVelocity(Phaser.Math.Between(-100, 100), 20);
+            }
+        }
+
+        function drawShape(obj, type) {
+            let graphics = this.add.graphics();
+            if (type === 'fruit') {
+                graphics.fillStyle(0xff0000, 1);
+                graphics.fillCircle(0, 0, 15);
+            } else if (type === 'candy') {
+                graphics.fillStyle(0x0000ff, 1);
+                graphics.fillRect(-15, -15, 30, 30);
+            }
+            graphics.generateTexture(type, 30, 30);
+            graphics.destroy();
+
+            obj.setTexture(type);
+        }
+
+        function collectFruit(player, fruit) {
+            fruit.disableBody(true, true);
+            score += 1;
+            scoreText.setText('Score: ' + score);
+        }
+
+        function hitCandy(player, candy) {
+            candy.disableBody(true, true);
+            hp -= 1;
+            hpText.setText('HP: ' + hp);
+            if (hp === 0) {
+                this.physics.pause();
+                player.setTint(0xff0000);
+                this.add.text(300, 250, 'Game Over', { fontSize: '64px', fill: '#000' });
+                this.add.text(300, 320, 'Click to Restart', { fontSize: '32px', fill: '#000' });
+
+                this.input.once('pointerdown', () => {
+                    hp = 3;
+                    score = 0;
+                    scoreText.setText('Score: ' + score);
+                    hpText.setText('HP: ' + hp);
+                    player.clearTint();
+                    this.physics.resume();
+                    this.scene.restart();
+                });
+            }
+        }
+    </script>
+</body>
+</html>
